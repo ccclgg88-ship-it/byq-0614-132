@@ -100,36 +100,91 @@ export const createCharacterBase = (): number[][] => {
 const createExpression = (
   eyeShape: number[][],
   mouthShape: number[][],
-  blush: boolean = false
+  blushLevel: 0 | 1 | 2 | 3 = 0,
+  rightEyeShape?: number[][],
+  browShape?: number[][],
+  extraElements?: { y: number; x: number; pixels: number[][] }[]
 ): number[][] => {
   const expr: number[][] = [];
   for (let i = 0; i < 64; i++) {
     expr.push(Array(64).fill(0));
   }
   
-  for (let y = 0; y < eyeShape.length; y++) {
-    for (let x = 0; x < eyeShape[y].length; x++) {
-      if (eyeShape[y][x] !== 0) {
-        expr[18 + y][22 + x] = eyeShape[y][x];
-        expr[18 + y][38 + x] = eyeShape[y][x];
+  const leftEye = eyeShape;
+  const rightEye = rightEyeShape || eyeShape;
+  const eyeSizeY = leftEye.length;
+  const eyeSizeX = leftEye[0]?.length || 0;
+  
+  const leftEyeY = 16;
+  const leftEyeX = 20;
+  const rightEyeX = 36;
+  
+  for (let y = 0; y < eyeSizeY; y++) {
+    for (let x = 0; x < eyeSizeX; x++) {
+      if (leftEye[y]?.[x] !== 0 && leftEye[y]?.[x] !== undefined) {
+        expr[leftEyeY + y][leftEyeX + x] = leftEye[y][x];
+      }
+      if (rightEye[y]?.[x] !== 0 && rightEye[y]?.[x] !== undefined) {
+        expr[leftEyeY + y][rightEyeX + x] = rightEye[y][x];
       }
     }
   }
   
-  for (let y = 0; y < mouthShape.length; y++) {
-    for (let x = 0; x < mouthShape[y].length; x++) {
-      if (mouthShape[y][x] !== 0) {
-        expr[28 + y][28 + x] = mouthShape[y][x];
+  if (browShape) {
+    const browSizeY = browShape.length;
+    const browSizeX = browShape[0]?.length || 0;
+    const browY = leftEyeY - browSizeY - 1;
+    
+    for (let y = 0; y < browSizeY; y++) {
+      for (let x = 0; x < browSizeX; x++) {
+        if (browShape[y]?.[x] !== 0 && browShape[y]?.[x] !== undefined) {
+          expr[browY + y][leftEyeX + x] = browShape[y][x];
+          expr[browY + y][rightEyeX + x] = browShape[y][x];
+        }
       }
     }
   }
   
-  if (blush) {
-    for (let x = 0; x < 6; x++) {
-      expr[24][18 + x] = 12;
-      expr[24][19 + x] = 7;
-      expr[24][40 + x] = 12;
-      expr[24][41 + x] = 7;
+  const mouthSizeY = mouthShape.length;
+  const mouthSizeX = mouthShape[0]?.length || 0;
+  const mouthY = 30;
+  const mouthX = 28 - Math.floor(mouthSizeX / 2) + 4;
+  
+  for (let y = 0; y < mouthSizeY; y++) {
+    for (let x = 0; x < mouthSizeX; x++) {
+      if (mouthShape[y]?.[x] !== 0 && mouthShape[y]?.[x] !== undefined) {
+        expr[mouthY + y][mouthX + x] = mouthShape[y][x];
+      }
+    }
+  }
+  
+  if (blushLevel >= 1) {
+    const blushWidth = blushLevel === 1 ? 4 : blushLevel === 2 ? 6 : 8;
+    const blushIntensity = blushLevel === 1 ? [12] : blushLevel === 2 ? [7, 12, 7] : [7, 7, 12, 7, 7];
+    const blushY = leftEyeY + eyeSizeY + 2;
+    
+    for (let i = 0; i < blushWidth; i++) {
+      const color = blushIntensity[Math.floor(i * blushIntensity.length / blushWidth)];
+      expr[blushY][leftEyeX - 2 + i] = color;
+      expr[blushY][rightEyeX - 2 + i] = color;
+      if (blushLevel >= 2) {
+        expr[blushY + 1][leftEyeX - 1 + i] = 12;
+        expr[blushY + 1][rightEyeX - 1 + i] = 12;
+      }
+    }
+  }
+  
+  if (extraElements) {
+    for (const elem of extraElements) {
+      for (let y = 0; y < elem.pixels.length; y++) {
+        for (let x = 0; x < (elem.pixels[y]?.length || 0); x++) {
+          if (elem.pixels[y]?.[x] !== 0 && elem.pixels[y]?.[x] !== undefined) {
+            if (elem.y + y < 64 && elem.x + x < 64) {
+              expr[elem.y + y][elem.x + x] = elem.pixels[y][x];
+            }
+          }
+        }
+      }
     }
   }
   
@@ -137,82 +192,241 @@ const createExpression = (
 };
 
 const eyeHappy = [
-  [0, 11, 11, 11, 11, 0],
-  [11, 10, 10, 10, 10, 11],
-  [0, 11, 11, 11, 11, 0],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+  [11, 11, 10, 10, 10, 10, 10, 10, 11, 11],
+  [0, 11, 10, 10, 3, 3, 10, 10, 11, 0],
+  [0, 11, 11, 10, 10, 10, 10, 11, 11, 0],
+  [0, 0, 11, 11, 11, 11, 11, 11, 0, 0],
+];
+
+const eyeHappyWink = [
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
 const eyeShy = [
-  [11, 11, 0, 0, 11, 11],
-  [0, 11, 11, 11, 11, 0],
-  [0, 0, 11, 11, 0, 0],
-];
-
-const eyeCoquettish = [
-  [0, 11, 11, 11, 11, 0],
-  [11, 10, 11, 11, 10, 11],
-  [0, 11, 0, 0, 11, 0],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [0, 0, 11, 11, 11, 11, 11, 11, 0, 0],
+  [0, 0, 0, 11, 11, 11, 11, 0, 0, 0],
 ];
 
 const eyeWronged = [
-  [11, 0, 0, 0, 0, 11],
-  [11, 10, 10, 10, 10, 11],
-  [0, 11, 11, 11, 11, 0],
+  [11, 11, 0, 0, 0, 0, 0, 0, 11, 11],
+  [11, 10, 10, 10, 10, 10, 10, 10, 10, 11],
+  [11, 10, 9, 10, 10, 10, 10, 9, 10, 11],
+  [0, 11, 10, 10, 10, 10, 10, 10, 11, 0],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
 ];
 
 const eyeSleepy = [
-  [0, 0, 0, 0, 0, 0],
-  [11, 11, 11, 11, 11, 11],
-  [0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [0, 0, 11, 11, 11, 11, 11, 11, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ];
 
 const eyeExcited = [
-  [11, 11, 11, 11, 11, 11],
-  [11, 3, 10, 10, 3, 11],
-  [11, 11, 11, 11, 11, 11],
+  [0, 3, 0, 11, 11, 11, 11, 0, 3, 0],
+  [3, 3, 3, 11, 10, 10, 11, 3, 3, 3],
+  [3, 10, 3, 11, 10, 10, 11, 3, 10, 3],
+  [3, 3, 3, 11, 11, 11, 11, 3, 3, 3],
+  [0, 3, 0, 0, 3, 3, 0, 0, 3, 0],
+];
+
+const browSad = [
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [11, 11, 0, 0, 0, 0, 0, 0, 11, 11],
+  [11, 11, 11, 0, 0, 0, 0, 11, 11, 11],
+];
+
+const browHappy = [
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [11, 11, 0, 0, 0, 0, 0, 0, 11, 11],
+];
+
+const browExcited = [
+  [3, 3, 0, 11, 11, 11, 11, 0, 3, 3],
+  [0, 3, 3, 11, 11, 11, 11, 3, 3, 0],
 ];
 
 const mouthHappy = [
-  [0, 11, 0, 0, 11, 0, 0, 0],
-  [11, 7, 11, 11, 7, 11, 0, 0],
-  [0, 11, 7, 7, 11, 0, 0, 0],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 11, 0],
+  [11, 11, 7, 7, 7, 7, 7, 7, 7, 11, 11],
+  [11, 7, 7, 10, 10, 10, 10, 10, 7, 7, 11],
+  [0, 11, 7, 7, 10, 10, 10, 7, 7, 11, 0],
+  [0, 0, 11, 11, 11, 11, 11, 11, 11, 0, 0],
 ];
 
 const mouthShy = [
-  [0, 0, 11, 11, 11, 11, 0, 0],
-  [0, 11, 12, 12, 12, 12, 11, 0],
-  [0, 0, 11, 11, 11, 11, 0, 0],
+  [0, 0, 0, 11, 11, 11, 11, 11, 0, 0, 0],
+  [0, 0, 11, 12, 12, 12, 12, 12, 11, 0, 0],
+  [0, 11, 12, 12, 7, 7, 7, 12, 12, 11, 0],
+  [0, 0, 11, 12, 12, 12, 12, 12, 11, 0, 0],
+  [0, 0, 0, 11, 11, 11, 11, 11, 0, 0, 0],
 ];
 
 const mouthCoquettish = [
-  [0, 11, 11, 0, 0, 0, 0, 0],
-  [11, 2, 2, 11, 0, 0, 0, 0],
-  [0, 11, 11, 0, 0, 0, 0, 0],
+  [0, 11, 11, 11, 0, 0, 0, 0, 0, 0, 0],
+  [11, 7, 7, 7, 11, 11, 0, 0, 0, 0, 0],
+  [11, 7, 7, 7, 7, 11, 0, 0, 0, 0, 0],
+  [11, 7, 7, 7, 11, 0, 0, 0, 0, 0, 0],
+  [0, 11, 11, 11, 0, 0, 0, 0, 0, 0, 0],
 ];
 
 const mouthWronged = [
-  [0, 11, 11, 11, 11, 0, 0, 0],
-  [11, 12, 12, 12, 12, 11, 0, 9],
-  [0, 11, 11, 11, 11, 0, 9, 0],
+  [0, 0, 11, 11, 11, 11, 11, 11, 0, 0, 0],
+  [0, 11, 12, 12, 12, 12, 12, 12, 11, 0, 0],
+  [11, 12, 12, 7, 7, 7, 7, 12, 12, 11, 0],
+  [11, 12, 7, 7, 9, 9, 7, 7, 12, 11, 0],
+  [0, 11, 11, 11, 11, 11, 11, 11, 11, 0, 0],
 ];
 
 const mouthSleepy = [
-  [0, 0, 0, 0, 0, 0, 0, 0],
-  [0, 11, 11, 11, 11, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 11, 11, 11, 11, 0, 0, 0, 0],
+  [0, 0, 11, 12, 12, 12, 12, 11, 0, 0, 0],
+  [0, 0, 0, 11, 12, 12, 11, 0, 0, 0, 0],
+  [0, 0, 0, 0, 11, 11, 0, 0, 0, 0, 0],
 ];
 
 const mouthExcited = [
-  [0, 11, 11, 11, 11, 11, 11, 0],
-  [11, 7, 7, 10, 10, 7, 7, 11],
-  [0, 11, 11, 11, 11, 11, 11, 0],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+  [11, 7, 7, 7, 10, 10, 10, 7, 7, 7, 11],
+  [11, 7, 10, 10, 10, 3, 10, 10, 10, 7, 11],
+  [11, 7, 7, 10, 3, 3, 3, 10, 7, 7, 11],
+  [11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11],
+];
+
+const tears = [
+  {
+    y: 23,
+    x: 20,
+    pixels: [
+      [9, 9],
+      [9, 9],
+      [0, 9],
+      [9, 0],
+      [0, 9],
+    ],
+  },
+  {
+    y: 23,
+    x: 46,
+    pixels: [
+      [9, 9],
+      [9, 9],
+      [9, 0],
+      [0, 9],
+      [9, 0],
+    ],
+  },
+];
+
+const sparkles = [
+  {
+    y: 10,
+    x: 15,
+    pixels: [
+      [0, 0, 3, 0, 0],
+      [0, 3, 3, 3, 0],
+      [3, 3, 10, 3, 3],
+      [0, 3, 3, 3, 0],
+      [0, 0, 3, 0, 0],
+    ],
+  },
+  {
+    y: 8,
+    x: 45,
+    pixels: [
+      [0, 3, 0],
+      [3, 10, 3],
+      [0, 3, 0],
+    ],
+  },
+  {
+    y: 14,
+    x: 8,
+    pixels: [
+      [3, 0, 3],
+      [0, 3, 0],
+      [3, 0, 3],
+    ],
+  },
+];
+
+const heartBubbles = [
+  {
+    y: 8,
+    x: 10,
+    pixels: [
+      [2, 0, 2],
+      [2, 2, 2],
+      [2, 2, 2],
+      [0, 2, 0],
+    ],
+  },
+  {
+    y: 12,
+    x: 52,
+    pixels: [
+      [2, 0, 2],
+      [2, 2, 2],
+      [0, 2, 0],
+    ],
+  },
 ];
 
 export const characterExpressions: Record<ExpressionState, number[][]> = {
-  happy: createExpression(eyeHappy, mouthHappy, false),
-  shy: createExpression(eyeShy, mouthShy, true),
-  coquettish: createExpression(eyeCoquettish, mouthCoquettish, true),
-  wronged: createExpression(eyeWronged, mouthWronged, false),
-  sleepy: createExpression(eyeSleepy, mouthSleepy, false),
-  excited: createExpression(eyeExcited, mouthExcited, false),
+  happy: createExpression(
+    eyeHappy,
+    mouthHappy,
+    2,
+    undefined,
+    browHappy
+  ),
+  shy: createExpression(
+    eyeShy,
+    mouthShy,
+    3,
+    undefined,
+    undefined,
+    heartBubbles
+  ),
+  coquettish: createExpression(
+    eyeHappy,
+    mouthCoquettish,
+    3,
+    eyeHappyWink,
+    browHappy,
+    heartBubbles
+  ),
+  wronged: createExpression(
+    eyeWronged,
+    mouthWronged,
+    2,
+    undefined,
+    browSad,
+    tears
+  ),
+  sleepy: createExpression(
+    eyeSleepy,
+    mouthSleepy,
+    1,
+    undefined,
+    browSad
+  ),
+  excited: createExpression(
+    eyeExcited,
+    mouthExcited,
+    3,
+    undefined,
+    browExcited,
+    sparkles
+  ),
 };

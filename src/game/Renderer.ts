@@ -60,6 +60,10 @@ export class Renderer {
     
     this.renderCharacter(state.currentExpression);
     
+    if (state.currentExpression === 'sleepy') {
+      this.renderSleepyZzz();
+    }
+    
     if (state.animationState === 'chewing' && dragFood) {
       this.renderChewingFood(dragFood);
     }
@@ -194,6 +198,29 @@ export class Renderer {
     }
     
     this.ctx.restore();
+  }
+
+  private renderSleepyZzz(): void {
+    const time = Date.now() / 1000;
+    this.ctx.font = 'bold 16px "Press Start 2P", monospace';
+    this.ctx.fillStyle = '#ffffff';
+    
+    const zPositions = [
+      { x: 30, y: -40, delay: 0 },
+      { x: 45, y: -55, delay: 0.5 },
+      { x: 60, y: -70, delay: 1 },
+    ];
+    
+    zPositions.forEach((pos) => {
+      const phase = ((time + pos.delay) % 2) / 2;
+      const alpha = 1 - phase;
+      const yOffset = -phase * 20;
+      
+      this.ctx.globalAlpha = alpha * 0.8;
+      this.ctx.fillText('Z', pos.x, pos.y + yOffset);
+    });
+    
+    this.ctx.globalAlpha = 1;
   }
 
   private renderScanlines(): void {
